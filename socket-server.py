@@ -19,22 +19,35 @@ def handle_client(client):  # Takes client socket as argument.
     """Handles a single client connection."""
 
     name = client.recv(BUFSIZ).decode("utf8")
+    print(client)
     welcome = 'Welcome %s! If you ever want to quit, type {quit} to exit.' % name
     client.send(bytes(welcome, "utf8"))
     msg = "%s has joined the game!" % name
     broadcast(bytes(msg, "utf8"))
     clients[client] = name
-    ready = 0
+    ready = 0;
 
     while True:
         msg = client.recv(BUFSIZ)
         if msg == bytes("{start}", "utf8"):
-        	ready = ready + 1
-        	print(ready)
-        	if len(clients) == ready and len(clients) >= 3:
-        		broadcast(bytes("Game Start", "utf8"))
+        	print(name + msg.decode("utf-8"))
+        	for p in players:
+        		print("p:" + p)
+        		if name == p:
+        			client.send(bytes("You already confirmed. Waiting for other players", "utf8"))
+        			ready = 1
+        			break
+        		else:
+        			continue
+        	if ready == 0:
+        		players.append(name)
+        	print(players)
+        	if len(players) >= 3 and len(players) == len(clients):
+        		start_game()
+        	elif len(players) < 3:
+        		broadcast(bytes("There must be at least 3 players to start game. Currently there are " + str(len(players)), "utf8"))
         	else:
-        		broadcast(bytes("WAIT FOR MORE PLAYERS LOSER", "utf8"))
+        		broadcast(bytes("Waiting for other players to confirm. "+ str(len(players)) +"/" + str(len(clients)) + " are confirmed", "utf8"))
         elif msg != bytes("{quit}", "utf8"):
             broadcast(msg, name+": ")
         else:
@@ -44,6 +57,8 @@ def handle_client(client):  # Takes client socket as argument.
             broadcast(bytes("%s has left the chat." % name, "utf8"))
             break
 
+def start_game():
+	broadcast(bytes("The game has started", "utf8"))
 
 def broadcast(msg, prefix=""):  # prefix is for name identification.
     """Broadcasts a message to all the clients."""
@@ -53,6 +68,7 @@ def broadcast(msg, prefix=""):  # prefix is for name identification.
 
         
 clients = {}
+players = []
 addresses = {}
 
 HOST = ''
