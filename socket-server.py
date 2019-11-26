@@ -2,9 +2,52 @@
 """Server for multithreaded (asynchronous) chat application."""
 from socket import AF_INET, socket, SOCK_STREAM
 from threading import Thread
+from random import choice
 
+def randomize_deck(client_cnt, hands):
+    print("randomize_deck")
+    deck = []
+
+    for i in range(1,len(clients)+1):
+        if i == 1:
+            deck.append("DA")
+            deck.append("HA")
+            deck.append("SA")
+            deck.append("CA")
+        elif i == 11:
+            deck.append("DJ")
+            deck.append("HJ")
+            deck.append("SJ")
+            deck.append("CJ")
+        elif i == 12:
+            deck.append("DQ")
+            deck.append("HQ")
+            deck.append("SQ")
+            deck.append("CQ")
+        elif i == 13:
+            deck.append("DK")
+            deck.append("HK")
+            deck.append("SK")
+            deck.append("CK")
+        else:
+            deck.append("D"+str(i))
+            deck.append("H"+str(i))
+            deck.append("S"+str(i))
+            deck.append("C"+str(i))
+    # i = 0
+    # j = 0
+    for i in range(client_cnt):
+        hand = []
+        for j in range(4):
+            card = choice(deck)
+            hand.append(card)
+            deck.remove(card)
+        hands.append(tuple(hand[:]))
+        hand.clear()
+    print(str(hands))
 
 def accept_incoming_connections():
+    print("accept_incoming_connections")
     """Sets up handling for incoming clients."""
     while True:
         client, client_address = SERVER.accept()
@@ -12,11 +55,33 @@ def accept_incoming_connections():
         print("%s:%s has connected." % client_address)
         client.send(bytes("Greetings from the cave! Now type your name and press enter!", "utf8"))
         addresses[client] = client_address
+        client_cards[client] = []
         Thread(target=handle_client, args=(client,)).start()
 
+def card_distrib():
+    print("card_distrib")
+    randomize_deck(len(clients), hands)
+    cnt = 0
+    for client in clients:
+        client_cards[client] = hands[cnt]
+        cnt+=1
+    for client in client_cards:
+        cards = ''
+        for i in range(len(client_cards[client])):
+            # print((client_cards[client])[i])
+            if i == 0:
+                temp = str(client_cards[client][i])
+                cards = cards + temp
+            else:
+                temp = str(client_cards[client][i])
+                cards = cards + ', ' + temp
+        print(str(clients[client])+':'+cards)
+        client.send(bytes(cards, "utf8"))
+        # print(client_cards[client])
 
 def handle_client(client):  # Takes client socket as argument.
     """Handles a single client connection."""
+    print("handle_client")
 
     name = client.recv(BUFSIZ).decode("utf8")
     print(client)
@@ -30,24 +95,25 @@ def handle_client(client):  # Takes client socket as argument.
     while True:
         msg = client.recv(BUFSIZ)
         if msg == bytes("{start}", "utf8"):
-        	print(name + msg.decode("utf-8"))
-        	for p in players:
-        		print("p:" + p)
-        		if name == p:
-        			client.send(bytes("You already confirmed. Waiting for other players", "utf8"))
-        			ready = 1
-        			break
-        		else:
-        			continue
-        	if ready == 0:
-        		players.append(name)
-        	print(players)
-        	if len(players) >= 3 and len(players) == len(clients):
-        		start_game()
-        	elif len(players) < 3:
-        		broadcast(bytes("There must be at least 3 players to start game. Currently there are " + str(len(players)), "utf8"))
-        	else:
-        		broadcast(bytes("Waiting for other players to confirm. "+ str(len(players)) +"/" + str(len(clients)) + " are confirmed", "utf8"))
+            print(name + msg.decode("utf-8"))
+            for p in players:
+                print("p:" + p)
+                if name == p:
+                    client.send(bytes("You already confirmed. Waiting for other players", "utf8"))
+                    ready = 1
+                    break
+                else:
+                    continue
+            if ready == 0:
+                players.append(name)
+            print(players)
+            if len(players) >= 3 and len(players) == len(clients):
+                start_game()
+
+            elif len(players) < 3:
+                broadcast(bytes("There must be at least 3 players to start game. Currently there are " + str(len(players)), "utf8"))
+            else:
+                broadcast(bytes("Waiting for other players to confirm. "+ str(len(players)) +"/" + str(len(clients)) + " are confirmed", "utf8"))
         elif msg != bytes("{quit}", "utf8"):
             broadcast(msg, name+": ")
         else:
@@ -58,21 +124,26 @@ def handle_client(client):  # Takes client socket as argument.
             break
 
 def start_game():
-	broadcast(bytes("The game has started", "utf8"))
+    print("start_game")
+    broadcast(bytes("The game has started", "utf8"))
+    card_distrib()
 
 def broadcast(msg, prefix=""):  # prefix is for name identification.
     """Broadcasts a message to all the clients."""
+    print("broadcast")
 
     for sock in clients:
         sock.send(bytes(prefix, "utf8")+msg)
 
-        
+
 clients = {}
+client_cards = {}
 players = []
+hands = []
 addresses = {}
 
 HOST = ''
-PORT = int(input())
+PORT = int(input("Enter game port: "))
 BUFSIZ = 1024
 ADDR = (HOST, PORT)
 
