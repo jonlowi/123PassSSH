@@ -4,7 +4,7 @@ from socket import AF_INET, socket, SOCK_STREAM
 from threading import Thread
 from random import choice
 
-def randomize_deck(client_cnt, hands):
+def randomize_deck():
     print("randomize_deck")
     deck = []
 
@@ -34,17 +34,16 @@ def randomize_deck(client_cnt, hands):
             deck.append("H"+str(i))
             deck.append("S"+str(i))
             deck.append("C"+str(i))
-    # i = 0
-    # j = 0
-    for i in range(client_cnt):
+
+    for client in clients:
         hand = []
         for j in range(4):
             card = choice(deck)
             hand.append(card)
             deck.remove(card)
-        hands.append(tuple(hand[:]))
+        client_cards[client] = hand[:]
         hand.clear()
-    print(str(hands))
+
 
 def accept_incoming_connections():
     print("accept_incoming_connections")
@@ -60,24 +59,18 @@ def accept_incoming_connections():
 
 def card_distrib():
     print("card_distrib")
-    randomize_deck(len(clients), hands)
-    cnt = 0
-    for client in clients:
-        client_cards[client] = hands[cnt]
-        cnt+=1
+    randomize_deck()
     for client in client_cards:
         cards = ''
-        for i in range(len(client_cards[client])):
-            # print((client_cards[client])[i])
+        for i in range(4):
+            temp = client_cards[client][i]
             if i == 0:
-                temp = str(client_cards[client][i])
                 cards = cards + temp
             else:
-                temp = str(client_cards[client][i])
-                cards = cards + ', ' + temp
-        print(str(clients[client])+':'+cards)
+                cards = cards + ' ' + temp
+        print(clients[client]+' : '+cards)
         client.send(bytes(cards, "utf8"))
-        # print(client_cards[client])
+
 
 def handle_client(client):  # Takes client socket as argument.
     """Handles a single client connection."""
@@ -139,7 +132,6 @@ def broadcast(msg, prefix=""):  # prefix is for name identification.
 clients = {}
 client_cards = {}
 players = []
-hands = []
 addresses = {}
 
 HOST = ''
